@@ -1224,6 +1224,27 @@ func main() {
 	// SampleCodeG201 - SQL injection via format string
 	SampleCodeG201 = []CodeSample{
 		{[]string{`
+// Format string with unsafe concatenation
+package main
+
+import (
+	"database/sql"
+	"fmt"
+	"os"
+)
+
+func main(){
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		panic(err)
+	}
+	q := fmt.Sprintf("SELECT * FROM foo where name = '" + os.Args[1] + "' WHERE 1=1")
+	rows, err := db.Query(q)
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+}`}, 1, gosec.NewConfig()}, {[]string{`
 // Format string without proper quoting
 package main
 

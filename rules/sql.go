@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"go/ast"
 	"regexp"
+	"runtime"
 
 	"github.com/securego/gosec/v2"
 	"github.com/securego/gosec/v2/issue"
@@ -236,10 +237,13 @@ func (s *sqlStrFormat) checkQuery(call *ast.CallExpr, ctx *gosec.Context) (*issu
 
 func (s *sqlStrFormat) checkFormatting(n ast.Node, ctx *gosec.Context) *issue.Issue {
 	// argIndex changes the function argument which gets matched to the regex
+	runtime.Breakpoint()
 	argIndex := 0
 	if node := s.fmtCalls.ContainsPkgCallExpr(n, ctx, false); node != nil {
+		runtime.Breakpoint()
 		// if the function is fmt.Fprintf, search for SQL statement in Args[1] instead
 		if sel, ok := node.Fun.(*ast.SelectorExpr); ok {
+			runtime.Breakpoint()
 			if sel.Sel.Name == "Fprintf" {
 				// if os.Stderr or os.Stdout is in Arg[0], mark as no issue
 				if arg, ok := node.Args[0].(*ast.SelectorExpr); ok {
@@ -250,46 +254,66 @@ func (s *sqlStrFormat) checkFormatting(n ast.Node, ctx *gosec.Context) *issue.Is
 					}
 				}
 				// the function is Fprintf so set argIndex = 1
+				// huh??? why??
 				argIndex = 1
 			}
 		}
+
+		runtime.Breakpoint()
 
 		// no formatter
 		if len(node.Args) == 0 {
 			return nil
 		}
 
+		runtime.Breakpoint()
+
 		var formatter string
 
 		// concats callexpr arg strings together if needed before regex evaluation
 		if argExpr, ok := node.Args[argIndex].(*ast.BinaryExpr); ok {
+
+			runtime.Breakpoint()
 			if fullStr, ok := gosec.ConcatString(argExpr); ok {
+				runtime.Breakpoint()
 				formatter = fullStr
 			}
 		} else if arg, e := gosec.GetString(node.Args[argIndex]); e == nil {
+			runtime.Breakpoint()
 			formatter = arg
 		}
 		if len(formatter) <= 0 {
+			runtime.Breakpoint()
 			return nil
 		}
 
+		runtime.Breakpoint()
 		// If all formatter args are quoted or constant, then the SQL construction is safe
-		if argIndex+1 < len(node.Args) {
+		if argIndex < len(node.Args) {
+			runtime.Breakpoint()
 			allSafe := true
 			for _, arg := range node.Args[argIndex+1:] {
+				runtime.Breakpoint()
 				if n := s.noIssueQuoted.ContainsPkgCallExpr(arg, ctx, true); n == nil && !s.constObject(arg, ctx) {
+					runtime.Breakpoint()
 					allSafe = false
 					break
 				}
 			}
+			runtime.Breakpoint()
 			if allSafe {
+				runtime.Breakpoint()
 				return nil
 			}
 		}
+
+		runtime.Breakpoint()
 		if s.MatchPatterns(formatter) {
+			runtime.Breakpoint()
 			return ctx.NewIssue(n, s.ID(), s.What, s.Severity, s.Confidence)
 		}
 	}
+	runtime.Breakpoint()
 	return nil
 }
 
