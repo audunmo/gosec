@@ -139,6 +139,33 @@ func (s *sqlStrConcat) checkObject(n *ast.Ident, c *gosec.Context) bool {
 	return false
 }
 
+// checkCallArgs will check if the given calls arguments contain possible SQL injections. If the call contains calls as arguments, ala db.Query(fmt.Sprint(...)),
+// it will apply itself recursively to those as well, bottoming out when it can find BinaryExpr,
+func (s *sqlStrConcat) checkCallArgs(call *ast.CallExpr, ctx *gosec.Context) *issue.Issue {
+	for _, arg := range call.Args {
+		if call, ok := arg.(*ast.CallExpr); ok {
+			return s.checkCallArgs(call, ctx)
+		}
+
+		if be, ok := arg.(*ast.BinaryExpr); ok {
+			operands := gosec.GetBinaryExprOperands(be)
+
+			for _, op := range operands {
+				if _, ok := op.(*ast.BasicLit); ok {
+					continue
+				}
+
+				if ident, ok := op.(*ast.Ident); ok && s.checkObject(ident, ctx) {
+					continue
+				}
+
+				return ctx.NewIssue(be, s.ID(), s.What, s.Severity, s.Confidence)
+			}
+		}
+	}
+	return nil
+}
+
 // checkQuery verifies if the query parameters is a string concatenation
 func (s *sqlStrConcat) checkQuery(call *ast.CallExpr, ctx *gosec.Context) (*issue.Issue, error) {
 	query, err := findQueryArg(call, ctx)
@@ -163,6 +190,55 @@ func (s *sqlStrConcat) checkQuery(call *ast.CallExpr, ctx *gosec.Context) (*issu
 				}
 				return ctx.NewIssue(be, s.ID(), s.What, s.Severity, s.Confidence), nil
 			}
+		}
+	}
+
+	// Catch cases of concats inside other calls, like fmt calls
+	if expr, ok := query.(*ast.CallExpr); ok {
+		args := expr.Args
+
+		var match bool
+		for _, arg := range args {
+			str, err := gosec.GetStringRecursive(arg)
+			if err != nil {
+				return nil, err
+			}
+
+			if s.MatchPatterns(str) {
+				match = true
+			}
+
+			if !match {
+				continue
+			}
+
+			if be, ok := arg.(*ast.BinaryExpr); ok {
+				operands := gosec.GetBinaryExprOperands(be)
+
+				for _, op := range operands {
+					if _, ok := op.(*ast.BasicLit); ok {
+						continue
+					}
+
+					if ident, ok := op.(*ast.Ident); ok && s.checkObject(ident, ctx) {
+						continue
+					}
+
+					if call, ok := op.(*ast.CallExpr); ok {
+						callIssue := s.checkCallArgs(call, ctx)
+
+						if callIssue != nil {
+							return callIssue, nil
+						}
+					}
+
+					return ctx.NewIssue(be, s.ID(), s.What, s.Severity, s.Confidence), nil
+				}
+			}
+		}
+
+		if !match {
+			return nil, nil
 		}
 	}
 

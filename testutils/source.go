@@ -1596,6 +1596,74 @@ func main() {
 	// SampleCodeG202 - SQL query string building via string concatenation
 	SampleCodeG202 = []CodeSample{
 		{[]string{`
+      // concat in a fmt call in a query call
+package main
+
+import (
+	"database/sql"
+	"os"
+  "fmt"
+)
+
+func main(){
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		panic(err)
+	}
+
+	rows, err := db.Query(fmt.Sprint("SELECT * FROM foo WHERE name = " + os.Args[0]))
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+}`}, 1, gosec.NewConfig()},
+		// 		{[]string{`
+		//       // postfixed concat in fmt call
+		// package main
+		//
+		// import (
+		// 	"database/sql"
+		// 	"os"
+		//   "fmt"
+		// )
+		//
+		// func main(){
+		// 	db, err := sql.Open("sqlite3", ":memory:")
+		// 	if err != nil {
+		// 		panic(err)
+		// 	}
+		//
+		//   q := fmt.Sprint("SELECT * FROM foo WHERE name = " + os.Args[0])
+		// 	rows, err := db.Query(q)
+		// 	if err != nil {
+		// 		panic(err)
+		// 	}
+		// 	defer rows.Close()
+		// }`}, 1, gosec.NewConfig()},
+		// {[]string{`
+		//       // infixed concat in fmt call
+		// package main
+		//
+		// import (
+		// 	"database/sql"
+		// 	"os"
+		//   "fmt"
+		// )
+		//
+		// func main(){
+		// 	db, err := sql.Open("sqlite3", ":memory:")
+		// 	if err != nil {
+		// 		panic(err)
+		// 	}
+		//
+		//   q := fmt.Sprint("INSERT INTO foo (name) VALUES ('" + os.Args[0] + "')")
+		// 	rows, err := db.Query(q)
+		// 	if err != nil {
+		// 		panic(err)
+		// 	}
+		// 	defer rows.Close()
+		// }`}, 1, gosec.NewConfig()},
+		{[]string{`
       // infixed concatenation
 package main
 
