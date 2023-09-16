@@ -39,6 +39,7 @@ type SSAAnalyzerResult struct {
 func BuildDefaultAnalyzers() []*analysis.Analyzer {
 	return []*analysis.Analyzer{
 		newSSRFAnalyzer("G107", "URL provided to HTTP request as taint input"),
+		newSQLInjectionAnalyzer("G201", "SQL Injection"),
 	}
 }
 
